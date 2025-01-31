@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulnerable Shop</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .product {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            color: green;
+            display: none;
+        }
+        .error {
+            color: red;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to Our Shop</h1>
+    
+    {% for id, product in products.items() %}
+    <div class="product">
+        <h2>{{ product.name }}</h2>
+        <p>Price: ${{ product.actual_price }}</p>
+        <form onsubmit="return purchaseProduct(event, '{{ id }}', {{ product.actual_price }})">
+            <input type="hidden" name="product_id" value="{{ id }}">
+            <!-- Vulnerable: Price is sent from client side -->
+            <input type="hidden" name="price" value="{{ product.actual_price }}">
+            <label>
+                Quantity:
+                <input type="number" name="quantity" value="1" min="1" required>
+            </label>
+            <button type="submit">Purchase</button>
+        </form>
+        <div class="success" id="success-{{ id }}"></div>
+        <div class="error" id="error-{{ id }}"></div>
+    </div>
+    {% endfor %}
+
+    <script>
+        async function purchaseProduct(event, productId, price) {
+            event.preventDefault();
+            const form = event.target;
+            const quantity = form.querySelector('[name="quantity"]').value;
+            
+            const formData = new FormData();
+            formData.append('product_id', productId);
+            formData.append('price', price);
+            formData.append('quantity', quantity);
+
+            try {
+                const response = await fetch('/purchase', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById(`success-${productId}`).textContent = data.message;
+                    document.getElementById(`success-${productId}`).style.display = 'block';
+                    document.getElementById(`error-${productId}`).style.display = 'none';
+                } else {
+                    document.getElementById(`error-${productId}`).textContent = data.error;
+                    document.getElementById(`error-${productId}`).style.display = 'block';
+                    document.getElementById(`success-${productId}`).style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById(`error-${productId}`).textContent = 'An error occurred';
+                document.getElementById(`error-${productId}`).style.display = 'block';
+                document.getElementById(`success-${productId}`).style.display = 'none';
+            }
+            return false;
+        }
+    </script>
+</body>
+</html> 
